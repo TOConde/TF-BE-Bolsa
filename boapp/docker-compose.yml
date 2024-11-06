@@ -9,6 +9,7 @@ services:
     environment:
       - NODE_ENV=development # O production, depende de tu configuración
       - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
       - MYSQL_USER=root
       - MYSQL_PASSWORD=root
       - MYSQL_DB=cotizaciones
@@ -23,7 +24,7 @@ services:
     ports:
       - "3316:3306"
     environment:
-      MYSQL_ROOT_PASSWORD: cotizaempresas # Contraseña del usuario root
+      MYSQL_ROOT_PASSWORD: root # Contraseña del usuario root
       MYSQL_DATABASE: cotizaciones # Nombre de la base de datos inicial
     volumes:
       - mysql-data:/var/lib/mysql # Persistencia de datos en un volumen
