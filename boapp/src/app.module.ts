@@ -3,6 +3,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
+import { EmpresaModule } from './empresa/empresa.module';
 
 @Module({
   imports: [
@@ -12,13 +13,13 @@ import { ScheduleModule } from '@nestjs/schedule';
       port: 3306,
       username: 'root',
       password: 'root',
-      database: 'escolar',
+      database: 'cotizaciones',
       synchronize: false,
       entities: ['dist/**/*.entity.js'],
       logging: 'all',
     }),
-    ScheduleModule.forRoot()
-    //modulos
+    ScheduleModule.forRoot(),
+    EmpresaModule,
   ],
   controllers: [AppController],
   providers: [AppService],
