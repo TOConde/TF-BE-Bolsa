@@ -9,13 +9,13 @@ services:
     environment:
       - NODE_ENV=development # O production, depende de tu configuración
       - MYSQL_HOST=mysql
-      - MYSQL_PORT=3306
       - MYSQL_USER=root
       - MYSQL_PASSWORD=root
       - MYSQL_DB=cotizaciones
-      - GEMPRESA_RUN_ENV=MIDOCKER
     depends_on:
       - mysql # Para asegurarse de que las bases de datos se inicien antes que la app
+    networks:
+    - boappnetwork 
 
   # Servicio para MySQL
   mysql:
