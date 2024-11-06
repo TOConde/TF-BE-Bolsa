@@ -10,7 +10,7 @@ services:
       - NODE_ENV=development # O production, depende de tu configuración
       - MYSQL_HOST=mysql
       - MYSQL_USER=root
-      - MYSQL_PASSWORD=cotizaempresas
+      - MYSQL_PASSWORD=root
       - MYSQL_DB=cotizaciones
       - GEMPRESA_RUN_ENV=MIDOCKER
     depends_on:
