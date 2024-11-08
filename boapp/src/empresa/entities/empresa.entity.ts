@@ -12,7 +12,7 @@ export class Empresa {
   name: 'codEmpresa',
     length: 100,
   })
-  public codempresa: string;
+  public codEmpresa: string;
 
   @Column({
     name: 'empresaNombre',
@@ -29,8 +29,8 @@ export class Empresa {
   @OneToMany(() => Cotizacion, (cotizacion) => cotizacion.empresa)
   public cotizaciones: Cotizacion[];
 
-  constructor(codempresa?: string, empresaNombre?: string, cantidadAcciones?: number) {
-    this.codempresa = codempresa || '';
+  constructor(codEmpresa?: string, empresaNombre?: string, cantidadAcciones?: number) {
+    this.codEmpresa = codEmpresa || '';
     this.empresaNombre = empresaNombre || '';
     this.cantidadAcciones = cantidadAcciones || 0;
   }
