@@ -1,4 +1,5 @@
-import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
+import { Cotizacion } from "./cotizacion.entity";
 
 @Entity('empresas')
 export class Empresa {
@@ -20,16 +21,17 @@ export class Empresa {
   public empresaNombre: string;
 
   @Column({
-    name: 'cotizationInicial',
-    type: 'decimal',
-    precision: 7,
-    scale: 2,
-  })
-  public cotizationInicial: number;
-
-  @Column({
     name: 'cantidadAcciones',
     type: 'bigint',
   })
   public cantidadAcciones: number;
+
+  @OneToMany(() => Cotizacion, (cotizacion) => cotizacion.empresa)
+  public cotizaciones: Cotizacion[];
+
+  constructor(codempresa?: string, empresaNombre?: string, cantidadAcciones?: number) {
+    this.codempresa = codempresa || '';
+    this.empresaNombre = empresaNombre || '';
+    this.cantidadAcciones = cantidadAcciones || 0;
+  }
 }

@@ -1,8 +1,9 @@
-import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+import { Empresa } from "./empresa.entity";
 
 
 @Entity('cotizaciones')
-export class cotizaciones {
+export class Cotizacion {
   @PrimaryGeneratedColumn({
     type: 'bigint',
   })
@@ -23,17 +24,19 @@ export class cotizaciones {
   public hora: string;
 
   @Column({
-    name: 'date',
-  })
-  public dateUTC: string;
-
-  @Column({
     name: 'cotizacion',
     type: 'decimal',
     precision: 7,
     scale: 2,
   })
   public cotization: number;
+
+  @ManyToOne(() => Empresa)
+  @JoinColumn({
+    name: 'idEmpresa',
+    referencedColumnName: 'id',
+  })
+  empresa: Empresa;
 
   constructor() {}
 }
