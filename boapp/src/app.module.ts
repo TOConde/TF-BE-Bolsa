@@ -8,6 +8,7 @@ import { ConfigModule } from '@nestjs/config';
 import { EmpresaService } from './empresa/empresa.service';
 import { EmpresaSeeder } from './empresa/seed/empresa.seeder';
 import { Empresa } from './empresa/entities/empresa.entity';
+import { ApiModule } from './api/api.module';
 
 @Module({
   imports: [
@@ -19,13 +20,14 @@ import { Empresa } from './empresa/entities/empresa.entity';
       username: process.env.MYSQL_USER,
       password: process.env.MYSQL_PASSWORD,
       database: process.env.MYSQL_DB,
-      synchronize: true,
+      synchronize: false,
       entities: ['dist/**/*.entity.js'],
       logging: 'all',
     }),
     ScheduleModule.forRoot(),
     TypeOrmModule.forFeature([Empresa]),
     EmpresaModule,
+    ApiModule,
   ],
   controllers: [AppController],
   providers: [AppService, EmpresaService, EmpresaSeeder],
