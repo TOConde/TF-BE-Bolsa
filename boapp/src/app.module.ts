@@ -9,6 +9,7 @@ import { EmpresaService } from './empresa/empresa.service';
 import { EmpresaSeeder } from './empresa/seed/empresa.seeder';
 import { Empresa } from './empresa/entities/empresa.entity';
 import { ApiModule } from './api/api.module';
+import { EmpresaController } from './empresa/empresa.controller';
 
 @Module({
   imports: [
@@ -30,6 +31,6 @@ import { ApiModule } from './api/api.module';
     ApiModule,
   ],
   controllers: [AppController],
-  providers: [AppService, EmpresaService, EmpresaSeeder],
+  providers: [AppService ],
 })
 export class AppModule {}
