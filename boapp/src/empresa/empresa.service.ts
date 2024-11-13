@@ -4,6 +4,7 @@ import { Cotizacion } from "./entities/cotizacion.entity";
 import { Repository } from "typeorm";
 import { ApiService } from "src/api/api.service";
 import { Empresa } from "./entities/empresa.entity";
+import { deUTCaUTCMas3 } from "src/utils/dateUtils";
 
 
 @Injectable()
@@ -22,13 +23,15 @@ export class EmpresaService {
       throw new NotFoundException(`Empresa con codigo '${codEmpresa}' no encontrada.`);
     }
   
-    const cotizacionDataList = await this.apiService.getEmpresaCotizacion(codEmpresa, fechaDesde, fechaHasta);
+    const cotizacionDataList: any[] = await this.apiService.getEmpresaCotizacion(codEmpresa, fechaDesde, fechaHasta);
     
-    // Recorre el array de cotizaciones
+    // Recorre el array de cotizaciones y convierte fecha y hora a utc+3
     const nuevasCotizaciones = cotizacionDataList.map(cotizacionData => {
+      const { fechaMas3, horaMas3 } = deUTCaUTCMas3(cotizacionData.fecha, cotizacionData.hora);
+
       return this.cotizacionRepository.create({
-        fecha: cotizacionData.fecha,
-        hora: cotizacionData.hora,
+        fecha: fechaMas3,
+        hora: horaMas3,
         cotization: cotizacionData.cotization,
         empresa: empresa,
       });
