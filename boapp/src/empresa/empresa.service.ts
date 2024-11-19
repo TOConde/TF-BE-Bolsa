@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, OnModuleInit } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException, OnModuleInit } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Cotizacion } from "./entities/cotizacion.entity";
 import { Repository } from "typeorm";
@@ -11,6 +11,7 @@ import * as momentTZ from "moment-timezone";
 
 @Injectable()
 export class EmpresaService implements OnModuleInit {
+  private readonly logger = new Logger(EmpresaService.name)
   constructor(
     @InjectRepository(Cotizacion)
     private cotizacionRepository: Repository<Cotizacion>,
@@ -104,17 +105,22 @@ export class EmpresaService implements OnModuleInit {
     }
   }
 
-  @Cron('5 * 6-12 * * 1-5')
+  @Cron('5 * 6-12 * * 1-5') //agregar un loger para ver que funciona en tiempo
   async actualizarDatosEmpresaHora() {
+    this.logger.log('Ejecución del cron actualizarDatosEmpresaHora iniciada.')
     const empresas = await this.getAllEmpresas();
 
     for (const empresa of empresas) {
       try {
         await this.actualizarCotizacion(empresa.codEmpresa);
+        this.logger.log(`Cotización actualizada para la empresa ${empresa.codEmpresa}`);
       } catch (error) {
         console.log(`Error actualizando datos de la empresa ${empresa.codEmpresa}:`, error);
+        this.logger.error(`Error actualizando datos de la empresa ${empresa.codEmpresa}: ${error.message}`);
       }
     }
+
+    this.logger.log('Ejecución del cron actualizarDatosEmpresaHora finalizada.');
   }
 
   async actualizarCotizacionManual(codEmpresa: string, fechaDesde: string, fechaHasta: string) {
