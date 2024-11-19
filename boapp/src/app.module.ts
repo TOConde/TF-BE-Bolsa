@@ -5,11 +5,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 import { EmpresaModule } from './empresa/empresa.module';
 import { ConfigModule } from '@nestjs/config';
-import { EmpresaService } from './empresa/empresa.service';
-import { EmpresaSeeder } from './empresa/seed/empresa.seeder';
 import { Empresa } from './empresa/entities/empresa.entity';
 import { ApiModule } from './api/api.module';
-import { EmpresaController } from './empresa/empresa.controller';
 
 @Module({
   imports: [
