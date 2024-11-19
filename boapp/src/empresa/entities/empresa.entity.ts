@@ -26,6 +26,12 @@ export class Empresa {
   })
   public cantidadAcciones: number;
 
+  @Column({
+    name: 'empresaDetails',
+    type: 'varchar',
+  })
+  public empresaDetails: string;
+
   @OneToMany(() => Cotizacion, (cotizacion) => cotizacion.empresa)
   public cotizaciones: Cotizacion[];
 
