@@ -1,7 +1,7 @@
 import { Injectable, Logger, NotFoundException, OnModuleInit } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Cotizacion } from "./entities/cotizacion.entity";
-import { Repository } from "typeorm";
+import { Between, Repository } from "typeorm";
 import { ApiService } from "src/api/api.service";
 import { Empresa } from "./entities/empresa.entity";
 import { deUTCaUTCMas3, deUTCMas3aUTC } from "src/utils/dateUtils";
@@ -28,11 +28,67 @@ export class EmpresaService implements OnModuleInit {
     return this.empresaRepository.find();
   }
 
+  async getEmpresaDetails(codEmpresa: string): Promise<Empresa> {
+    const empresa = this.empresaRepository.findOne({ where: { codEmpresa } });
+    if (!empresa) {
+      throw new NotFoundException(`Empresa con código '${codEmpresa}' no encontrada.`);
+    }
+    return empresa;
+  }
+
   async obtenerUltimaCotizacion(codEmpresa: string): Promise<Cotizacion | null> {
     return this.cotizacionRepository.findOne({
       where: { empresa: { codEmpresa } },
       order: { fecha: 'DESC', hora: 'DESC' },
     });
+  }
+
+  async getCotizacionesEmpresa(codEmpresa: string, fechaDesde: string, fechaHasta: string, escala: string): Promise<any[]> {
+    const empresa = await this.empresaRepository.findOne({ where: { codEmpresa } });
+    if (!empresa) {
+      throw new NotFoundException(`Empresa con código '${codEmpresa}' no encontrada.`);
+    }
+
+    const fechaInicio = new Date(fechaDesde).toISOString().split('T')[0];
+    const fechaFin = new Date(fechaHasta).toISOString().split('T')[0];
+
+    if (escala === 'hora') {
+      return this.cotizacionRepository.find({
+        where: {
+          empresa: { codEmpresa },
+          fecha: Between(fechaInicio, fechaFin),
+        },
+        order: { fecha: 'ASC', hora: 'ASC' },
+      });
+    } else if (escala === 'dia') {
+      return this.cotizacionRepository
+        .createQueryBuilder('cotizacion')
+        .select('DATE_FORMAT(cotizacion.fecha, "%Y-%m-%d")', 'fecha')
+        .addSelect('MIN(cotizacion.cotization)', 'minimo')
+        .addSelect('MAX(cotizacion.cotization)', 'maximo')
+        .addSelect('SUBSTRING_INDEX(GROUP_CONCAT(cotizacion.cotization ORDER BY cotizacion.hora ASC), ",", 1)', 'apertura')
+        .addSelect('SUBSTRING_INDEX(GROUP_CONCAT(cotizacion.cotization ORDER BY cotizacion.hora DESC), ",", 1)', 'cierre')
+        .where('cotizacion.idEmpresa = :idEmpresa', { idEmpresa: empresa.id })
+        .andWhere('cotizacion.fecha BETWEEN :fechaInicio AND :fechaFin', { fechaInicio, fechaFin })
+        .groupBy('DATE_FORMAT(cotizacion.fecha, "%Y-%m-%d")')
+        .orderBy('DATE_FORMAT(cotizacion.fecha, "%Y-%m-%d")', 'ASC')
+        .getRawMany();
+    } else if (escala === 'mes') {
+      return this.cotizacionRepository
+        .createQueryBuilder('cotizacion')
+        .select('DATE_FORMAT(cotizacion.fecha, "%Y-%m")', 'mes')
+        .addSelect('MIN(cotizacion.cotization)', 'minimo')
+        .addSelect('MAX(cotizacion.cotization)', 'maximo')
+        .addSelect('SUBSTRING_INDEX(GROUP_CONCAT(cotizacion.cotization ORDER BY cotizacion.fecha ASC), ",", 1)', 'apertura')
+        .addSelect('SUBSTRING_INDEX(GROUP_CONCAT(cotizacion.cotization ORDER BY cotizacion.fecha DESC), ",", 1)', 'cierre')
+        .where('cotizacion.idEmpresa = :idEmpresa', { idEmpresa: empresa.id })
+        .andWhere('cotizacion.fecha BETWEEN :fechaInicio AND :fechaFin', { fechaInicio, fechaFin })
+        .groupBy('DATE_FORMAT(cotizacion.fecha, "%Y-%m")')
+        .orderBy('DATE_FORMAT(cotizacion.fecha, "%Y-%m")', 'ASC')
+        .getRawMany();
+    } else {
+      throw new Error(`Escala '${escala}' no soportada. Use 'hora', 'dia' o 'mes'.`);
+    }
   }
 
   async actualizarCotizacion(codEmpresa: string) {
@@ -105,7 +161,7 @@ export class EmpresaService implements OnModuleInit {
     }
   }
 
-  @Cron('5 * 6-12 * * 1-5') //agregar un loger para ver que funciona en tiempo
+  @Cron('5 3-9 * * 1-5') // 3-9 hora local(utc-3) -> 9-15 utc+3
   async actualizarDatosEmpresaHora() {
     this.logger.log('Ejecución del cron actualizarDatosEmpresaHora iniciada.')
     const empresas = await this.getAllEmpresas();
