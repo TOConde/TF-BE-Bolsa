@@ -1,13 +1,28 @@
-import { Controller, Param, Post, Query } from "@nestjs/common";
+import { Controller, Get, Param, Post, Query } from "@nestjs/common";
 import { EmpresaService } from "./empresa.service";
 
 
-@Controller('empresa')
+@Controller('empresas')
 export class EmpresaController {
-  constructor(private readonly empresaService: EmpresaService) {}
+  constructor(private readonly empresaService: EmpresaService) { }
 
-  @Post(':codEmpresa/cotizacion')
+  @Get()
+  async getAllEmpresas() {
+    return await this.empresaService.getAllEmpresas();
+  }
+
+  @Post(':codEmpresa/cotizaciones')
   async actualizarCotizacionManual(@Param('codEmpresa') codEmpresa: string, @Query('fechaDesde') fechaDesde: string, @Query('fechaHasta') fechaHasta: string,) {
-    return await this.empresaService.actualizarCotizacionManual(codEmpresa, fechaDesde, fechaHasta)
+    return await this.empresaService.actualizarCotizacionManual(codEmpresa, fechaDesde, fechaHasta);
+  }
+
+  @Get(':codEmpresa')
+  async getEmpresaDetails(@Param('codEmpresa') codEmpresa: string) {
+    return await this.empresaService.getEmpresaDetails(codEmpresa);
+  }
+
+  @Get(':codEmpresa/cotizaciones')
+  async getCotizacionesEmpresa(@Param('codEmpresa') codEmpresa: string, @Query('fechaDesde') fechaDesde: string, @Query('fechaHasta') fechaHasta: string, @Query('escala') escala: string) {
+    return await this.empresaService.getCotizacionesEmpresa(codEmpresa, fechaDesde, fechaHasta, escala);
   }
 }
