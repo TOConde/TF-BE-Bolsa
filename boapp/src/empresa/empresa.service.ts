@@ -99,25 +99,38 @@ export class EmpresaService implements OnModuleInit {
     }
 
     const ultimaCotizacion = await this.obtenerUltimaCotizacion(codEmpresa);
-
     const ahora = momentTZ.tz('Europe/Istanbul') //hora actual en utc+3
 
     let fechaDesde: momentTZ.Moment;
     if (ultimaCotizacion) {
-      // Si hay una última cotización, empezar desde el día siguiente
       const { fechaUtc, horaUtc } = deUTCMas3aUTC(ultimaCotizacion.fecha, ultimaCotizacion.hora);
-      fechaDesde = momentTZ.tz(`${fechaUtc}T${horaUtc}`, 'UTC').tz('Europe/Istanbul').startOf('day').add(1, 'day');
+      fechaDesde = momentTZ.tz(`${fechaUtc}T${horaUtc}`, 'UTC').tz('Europe/Istanbul');
     } else {
       fechaDesde = momentTZ.tz('2024-01-01', 'Europe/Istanbul');
     }
 
+    this.logger.log(`Iniciando actualización de cotización para ${codEmpresa}. Fecha desde: ${fechaDesde.format('YYYY-MM-DD HH:mm')}, ahora: ${ahora.format('YYYY-MM-DD HH:mm')}`);
+
     while (fechaDesde.isBefore(ahora, 'day') || fechaDesde.isSame(ahora, 'day')) {
       // solo días lunes(1) a viernes(5)
       if (fechaDesde.isoWeekday() >= 1 && fechaDesde.isoWeekday() <= 5) {
-        const inicioDia = fechaDesde.clone().hour(9).minute(0);
+        // Obtener última hora registrada del día
+        let inicioDia: momentTZ.Moment;
+        if (ultimaCotizacion && fechaDesde.isSame(momentTZ.tz(ultimaCotizacion.fecha, 'Europe/Istanbul'), 'day')) {
+          const ultimaHora = momentTZ.tz(ultimaCotizacion.hora, 'HH:mm', 'Europe/Istanbul').add(1, 'hour');
+          if (ultimaHora.hour() > 15) {
+            fechaDesde.add(1, 'day');
+            continue;
+          }
+          inicioDia = fechaDesde.clone().hour(ultimaHora.hour()).minute(0);
+        } else {
+          inicioDia = fechaDesde.clone().hour(9).minute(0);
+        }
+  
         const finDia = fechaDesde.clone().hour(15).minute(0);
+        const rangoFin = fechaDesde.isSame(ahora, 'day') && ahora.isBefore(finDia) ? ahora : finDia;  
 
-        const rangoFin = fechaDesde.isSame(ahora, 'day') && ahora.isBefore(finDia) ? ahora : finDia;
+        this.logger.log(`Consultando API para empresa ${codEmpresa} entre ${inicioDia.format('YYYY-MM-DD HH:mm')} y ${rangoFin.format('YYYY-MM-DD HH:mm')}`);
 
         try {
           const cotizacionDataList = await this.apiService.getEmpresaCotizacion(
@@ -125,7 +138,6 @@ export class EmpresaService implements OnModuleInit {
             inicioDia.clone().utc().format('YYYY-MM-DDTHH:mm'),
             rangoFin.clone().utc().format('YYYY-MM-DDTHH:mm'),
           );
-
           const nuevasCotizaciones = cotizacionDataList.map(cotizacionData => {
             const { fechaMas3, horaMas3 } = deUTCaUTCMas3(cotizacionData.fecha, cotizacionData.hora);
             return this.cotizacionRepository.create({
@@ -138,10 +150,7 @@ export class EmpresaService implements OnModuleInit {
 
           await this.cotizacionRepository.save(nuevasCotizaciones);
         } catch (error) {
-          console.error(
-            `Error obteniendo datos para ${codEmpresa} en ${fechaDesde.format('YYYY-MM-DD')}:`,
-            error,
-          );
+          console.error(`Error obteniendo datos para ${codEmpresa} en ${fechaDesde.format('YYYY-MM-DD HH:mm')}:`, error,);
         }
       }
 
