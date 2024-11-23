@@ -17,8 +17,8 @@ export class EmpresaController {
   }
 
   @Get(':codEmpresa')
-  async getEmpresaDetails(@Param('codEmpresa') codEmpresa: string) {
-    return await this.empresaService.getEmpresaDetails(codEmpresa);
+  async getEmpresa(@Param('codEmpresa') codEmpresa: string) {
+    return await this.empresaService.getEmpresa(codEmpresa);
   }
 
   @Get(':codEmpresa/cotizaciones')

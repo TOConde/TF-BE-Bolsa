@@ -28,7 +28,7 @@ export class EmpresaService implements OnModuleInit {
     return this.empresaRepository.find();
   }
 
-  async getEmpresaDetails(codEmpresa: string): Promise<Empresa> {
+  async getEmpresa(codEmpresa: string): Promise<Empresa> {
     const empresa = this.empresaRepository.findOne({ where: { codEmpresa } });
     if (!empresa) {
       throw new NotFoundException(`Empresa con código '${codEmpresa}' no encontrada.`);
