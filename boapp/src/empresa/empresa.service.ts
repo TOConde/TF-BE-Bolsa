@@ -52,14 +52,21 @@ export class EmpresaService implements OnModuleInit {
     const fechaInicio = new Date(fechaDesde).toISOString().split('T')[0];
     const fechaFin = new Date(fechaHasta).toISOString().split('T')[0];
 
+    this.logger.log(`Iniciando getCotizacionesEmpresa para ${codEmpresa}. Fecha desde: ${fechaInicio}, fecha fin: ${fechaFin} escala: ${escala}`);
+
     if (escala === 'hora') {
-      return this.cotizacionRepository.find({
-        where: {
-          empresa: { codEmpresa },
-          fecha: Between(fechaInicio, fechaFin),
-        },
-        order: { fecha: 'ASC', hora: 'ASC' },
-      });
+      return this.cotizacionRepository
+        .createQueryBuilder('cotizacion')
+        .select('DATE_FORMAT(CONCAT(cotizacion.fecha, " ", cotizacion.hora), "%Y-%m-%d %H:%i")', 'fecha')
+        .addSelect('MIN(cotizacion.cotization)', 'minimo')
+        .addSelect('MAX(cotizacion.cotization)', 'maximo')
+        .addSelect('SUBSTRING_INDEX(GROUP_CONCAT(cotizacion.cotization ORDER BY cotizacion.hora ASC), ",", 1)', 'apertura')
+        .addSelect('SUBSTRING_INDEX(GROUP_CONCAT(cotizacion.cotization ORDER BY cotizacion.hora DESC), ",", 1)', 'cierre')
+        .where('cotizacion.idEmpresa = :idEmpresa', { idEmpresa: empresa.id })
+        .andWhere('cotizacion.fecha BETWEEN :fechaInicio AND :fechaFin', { fechaInicio, fechaFin })
+        .groupBy('DATE_FORMAT(CONCAT(cotizacion.fecha, " ", cotizacion.hora), "%Y-%m-%d %H:%i")')
+        .orderBy('fecha', 'ASC')
+        .getRawMany();
     } else if (escala === 'dia') {
       return this.cotizacionRepository
         .createQueryBuilder('cotizacion')
@@ -72,11 +79,11 @@ export class EmpresaService implements OnModuleInit {
         .andWhere('cotizacion.fecha BETWEEN :fechaInicio AND :fechaFin', { fechaInicio, fechaFin })
         .groupBy('DATE_FORMAT(cotizacion.fecha, "%Y-%m-%d")')
         .orderBy('DATE_FORMAT(cotizacion.fecha, "%Y-%m-%d")', 'ASC')
-        .getRawMany();
+        .getRawMany()
     } else if (escala === 'mes') {
       return this.cotizacionRepository
         .createQueryBuilder('cotizacion')
-        .select('DATE_FORMAT(cotizacion.fecha, "%Y-%m")', 'mes')
+        .select('DATE_FORMAT(cotizacion.fecha, "%Y-%m")', 'fecha')
         .addSelect('MIN(cotizacion.cotization)', 'minimo')
         .addSelect('MAX(cotizacion.cotization)', 'maximo')
         .addSelect('SUBSTRING_INDEX(GROUP_CONCAT(cotizacion.cotization ORDER BY cotizacion.fecha ASC), ",", 1)', 'apertura')
@@ -85,7 +92,7 @@ export class EmpresaService implements OnModuleInit {
         .andWhere('cotizacion.fecha BETWEEN :fechaInicio AND :fechaFin', { fechaInicio, fechaFin })
         .groupBy('DATE_FORMAT(cotizacion.fecha, "%Y-%m")')
         .orderBy('DATE_FORMAT(cotizacion.fecha, "%Y-%m")', 'ASC')
-        .getRawMany();
+        .getRawMany()
     } else {
       throw new Error(`Escala '${escala}' no soportada. Use 'hora', 'dia' o 'mes'.`);
     }
@@ -126,9 +133,9 @@ export class EmpresaService implements OnModuleInit {
         } else {
           inicioDia = fechaDesde.clone().hour(9).minute(0);
         }
-  
+
         const finDia = fechaDesde.clone().hour(15).minute(0);
-        const rangoFin = fechaDesde.isSame(ahora, 'day') && ahora.isBefore(finDia) ? ahora : finDia;  
+        const rangoFin = fechaDesde.isSame(ahora, 'day') && ahora.isBefore(finDia) ? ahora : finDia;
 
         this.logger.log(`Consultando API para empresa ${codEmpresa} entre ${inicioDia.format('YYYY-MM-DD HH:mm')} y ${rangoFin.format('YYYY-MM-DD HH:mm')}`);
 
