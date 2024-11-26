@@ -43,6 +43,15 @@ export class EmpresaService implements OnModuleInit {
     });
   }
 
+  async getUltimaCotizacion(codEmpresa: string) {
+    const ultimaCotizacion = await this.cotizacionRepository.findOne({
+      where: { empresa: { codEmpresa } },
+      order: { fecha: 'DESC', hora: 'DESC' },
+    });
+
+    return ultimaCotizacion.cotization;
+  }
+
   async getCotizacionesEmpresa(codEmpresa: string, fechaDesde: string, fechaHasta: string, escala: string): Promise<any[]> {
     const empresa = await this.empresaRepository.findOne({ where: { codEmpresa } });
     if (!empresa) {
