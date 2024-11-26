@@ -9,7 +9,7 @@ export class Empresa {
   public id: number;
 
   @Column({
-  name: 'codEmpresa',
+    name: 'codEmpresa',
     length: 100,
   })
   public codEmpresa: string;
