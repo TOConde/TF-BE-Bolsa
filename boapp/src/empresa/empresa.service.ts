@@ -1,7 +1,7 @@
 import { Injectable, Logger, NotFoundException, OnModuleInit } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Cotizacion } from "./entities/cotizacion.entity";
-import { Between, Repository } from "typeorm";
+import { Repository } from "typeorm";
 import { ApiService } from "src/api/api.service";
 import { Empresa } from "./entities/empresa.entity";
 import { deUTCaUTCMas3, deUTCMas3aUTC } from "src/utils/dateUtils";
