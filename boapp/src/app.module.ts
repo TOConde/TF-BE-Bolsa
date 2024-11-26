@@ -7,6 +7,7 @@ import { EmpresaModule } from './empresa/empresa.module';
 import { ConfigModule } from '@nestjs/config';
 import { Empresa } from './empresa/entities/empresa.entity';
 import { ApiModule } from './api/api.module';
+import { BolsaModule } from './bolsa/bolsa.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { ApiModule } from './api/api.module';
     ScheduleModule.forRoot(),
     TypeOrmModule.forFeature([Empresa]),
     EmpresaModule,
+    BolsaModule,
     ApiModule,
   ],
   controllers: [AppController],
