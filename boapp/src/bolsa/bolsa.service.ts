@@ -158,7 +158,7 @@ export class BolsaService implements OnModuleInit {
     // subi las cotizaciones de mi bolsa a la api (tener en cuenta el cambio horario)
   }
 
-  @Cron('10 * 3-9 * * 1-5')
+  @Cron('7 3-9 * * 1-5')
   async a(){
     this.logger.log('Ejecutando tarea programada: actualizarBolsas');
     await this.actualizarBolsas();
