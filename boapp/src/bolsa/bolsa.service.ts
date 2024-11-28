@@ -7,6 +7,7 @@ import { ApiService } from "src/api/api.service";
 import { EmpresaService } from "src/empresa/empresa.service";
 import * as momentTZ from "moment-timezone";
 import { Cron } from "@nestjs/schedule";
+import { deUTCMas3aUTC } from "src/utils/dateUtils";
 
 @Injectable()
 export class BolsaService implements OnModuleInit {
@@ -28,6 +29,13 @@ export class BolsaService implements OnModuleInit {
 
   async getAllBolsas(): Promise<Bolsa[]> {
     return await this.bolsaRepository.find();
+  }
+
+  async obtenerUltimaCotizacionBolsa(code: string): Promise<CotizacionIndice | null> {
+    return await this.cotizacionIndiceRepository.findOne({
+      where: { bolsa: { code } },
+      order: { fecha: 'DESC', hora: 'DESC' },
+    });
   }
 
   // si no esta mi bolsa podria crearla (al final)
@@ -67,10 +75,7 @@ export class BolsaService implements OnModuleInit {
         return;
       }
 
-      const ultimaCotizacion = await this.cotizacionIndiceRepository.findOne({
-        where: { bolsa: { code: "BIST" } },
-        order: { fecha: "DESC", hora: "DESC" }
-      })
+      const ultimaCotizacion = await this.obtenerUltimaCotizacionBolsa(bolsaBIST.code)
 
       let fechaInicio: string;
       let horaInicio: string;
@@ -161,7 +166,20 @@ export class BolsaService implements OnModuleInit {
 
     for (const bolsa of bolsas) {
       try {
+        const ultimaCotizacion = await this.obtenerUltimaCotizacionBolsa(bolsa.code);
+        const ahora = momentTZ.tz('Europe/Istanbul')
 
+        let fechaDesde: momentTZ.Moment;
+        if (ultimaCotizacion) {
+          const { fechaUtc, horaUtc } = deUTCMas3aUTC(ultimaCotizacion.fecha, ultimaCotizacion.hora);
+          fechaDesde = momentTZ.tz(`${fechaUtc}T${horaUtc}`, 'UTC').tz('Europe/Istanbul');
+        }
+
+        this.logger.log(`Iniciando actualización de cotización para Bolsa: ${bolsa.code}. Fecha desde: ${fechaDesde.format('YYYY-MM-DD HH:mm')}, ahora: ${ahora.format('YYYY-MM-DD HH:mm')}`);
+
+        while (fechaDesde.isBefore(ahora, 'day') || fechaDesde.isSame(ahora, 'day')) {
+          
+        }
       } catch (error) {
         console.error(`Error actualizando datos de la bolsa ${bolsa.code}:`, error);
       }
@@ -173,7 +191,7 @@ export class BolsaService implements OnModuleInit {
   }
 
   @Cron('7 3-9 * * 1-5')
-  async aactualizarBolsasHora() {
+  async actualizarBolsasHora() {
     this.logger.log('Ejecutando tarea programada: actualizarBolsas');
     await this.actualizarBolsas();
 
