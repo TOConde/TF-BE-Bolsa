@@ -24,7 +24,8 @@ export class BolsaService implements OnModuleInit {
   async onModuleInit() {
     await this.actualizarBolsas();
     await this.crearCotizacionesBIST();
-    //await this.actualizarCotizacionBolsasApi()
+    await this.actualizarCotizacionBolsasApi()
+    //await this.subirCotizacionesBIST();
   }
 
   async getAllBolsas(): Promise<Bolsa[]> {
@@ -75,7 +76,7 @@ export class BolsaService implements OnModuleInit {
         return;
       }
 
-      const ultimaCotizacion = await this.obtenerUltimaCotizacionBolsa(bolsaBIST.code)
+      const ultimaCotizacion = await this.obtenerUltimaCotizacionBolsa(bolsaBIST.code);
 
       let fechaInicio: string;
       let horaInicio: string;
@@ -157,37 +158,76 @@ export class BolsaService implements OnModuleInit {
   }
 
   async actualizarCotizacionBolsasApi() {
-    // si no hay registro previo traer desde 2024-01-01T00:00 si no traer desde ultima fecha de cotizacion existente (verificar que no se repita el ultimo dato)
     const bolsas = await this.getAllBolsas();
 
     if (!bolsas) {
       this.logger.warn(`No se encontraron bolsas`)
+      return;
     }
 
     for (const bolsa of bolsas) {
+      const bolsasExcluidas = new Set(["BIST", "TSE"]);
+      if (bolsasExcluidas.has(bolsa.code)) {
+        this.logger.log(`Saltando la actualizacion para la bolsa ${bolsa.code}`);
+        continue;
+      }
+
       try {
         const ultimaCotizacion = await this.obtenerUltimaCotizacionBolsa(bolsa.code);
-        const ahora = momentTZ.tz('Europe/Istanbul')
 
         let fechaDesde: momentTZ.Moment;
         if (ultimaCotizacion) {
           const { fechaUtc, horaUtc } = deUTCMas3aUTC(ultimaCotizacion.fecha, ultimaCotizacion.hora);
-          fechaDesde = momentTZ.tz(`${fechaUtc}T${horaUtc}`, 'UTC').tz('Europe/Istanbul');
+          fechaDesde = momentTZ.tz(`${fechaUtc}T${horaUtc}`, 'UTC');
+        } else {
+          const fechaDefecto = '2024-01-01T00:00';
+          fechaDesde = momentTZ.tz(fechaDefecto, 'UTC')
+          this.logger.warn(`No se encontraron cotizaciones previas para la bolsa ${bolsa.code}. Usando fecha por defecto: ${fechaDesde.format('YYYY-MM-DD')}`);
         }
 
-        this.logger.log(`Iniciando actualización de cotización para Bolsa: ${bolsa.code}. Fecha desde: ${fechaDesde.format('YYYY-MM-DD HH:mm')}, ahora: ${ahora.format('YYYY-MM-DD HH:mm')}`);
+        const fechaActual = momentTZ.tz("UTC");
+        this.logger.log(`Iniciando actualización para la bolsa ${bolsa.code}. Desde: ${fechaDesde.format("YYYY-MM-DDTHH:mm")} hasta: ${fechaActual.format("YYYY-MM-DDTHH:mm")}`);
 
-        while (fechaDesde.isBefore(ahora, 'day') || fechaDesde.isSame(ahora, 'day')) {
-          
+        const cotizaciones = await this.apiservice.getBolsaCotizacionIndice(bolsa.code, fechaDesde.format("YYYY-MM-DDTHH:mm"), fechaActual.format("YYYY-MM-DDTHH:mm"));
+
+        if (!cotizaciones || cotizaciones.length === 0) {
+          this.logger.log(`No se encontraron cotizaciones nuevas para la bolsa ${bolsa.code}. Desde: ${fechaDesde} hasta: ${fechaActual}`);
+          continue;
         }
+
+        for (const cotizacion of cotizaciones) {
+          const fechaUtc = cotizacion.fecha;
+          const horaUtc = cotizacion.hora;
+          const valor = cotizacion.valor;
+
+          const fechaHoraUtcMas3 = momentTZ.tz(`${fechaUtc}T${horaUtc}`, "YYYY-MM-DDTHH:mm", "UTC").add(3, "hours");
+          const fecha = fechaHoraUtcMas3.format("YYYY-MM-DD");
+          const hora = fechaHoraUtcMas3.format("HH:mm");
+
+          const cotizacionExistente = await this.cotizacionIndiceRepository.findOne({
+            where: { fecha, hora, bolsa: { code: bolsa.code } }
+          })
+
+          if (!cotizacionExistente) {
+            const nuevaCotizacion = this.cotizacionIndiceRepository.create({
+              fecha,
+              hora,
+              valor,
+              bolsa: bolsa
+            })
+            await this.cotizacionIndiceRepository.save(nuevaCotizacion);
+            this.logger.log(`Guardada cotización: Bolsa ${bolsa.code}, Fecha ${fecha}, Hora ${hora}, Valor ${valor}`);
+          }
+        }
+
       } catch (error) {
         console.error(`Error actualizando datos de la bolsa ${bolsa.code}:`, error);
       }
     }
   }
 
-  async subirCotizacionesBIST() { // tambien dejarlo en onModuleInit y llamar a schedule
-    // subi las cotizaciones de mi bolsa a la api (tener en cuenta el cambio horario)
+  async subirCotizacionesBIST() {// en mi DB esta en UTC+3 -> UTC
+    // subir las cotizaciones de mi bolsa a la api (tener en cuenta el cambio horario)
   }
 
   @Cron('7 3-9 * * 1-5')
@@ -197,10 +237,16 @@ export class BolsaService implements OnModuleInit {
 
     this.logger.log('Ejecutando tarea programada: crearCotizacionesBIST');
     await this.crearCotizacionesBIST();
+  }
 
-    //this.logger.log('Ejecutando tarea programada: actualizarCotizacionBolsasApi');
+  @Cron('10 * * * *')
+  async actualizarBolsasHoraApi() {
+    this.logger.log('Ejecutando tarea programada: actualizarCotizacionBolsasApi');
     //await this.actualizarCotizacionBolsasApi();
   }
 
-  //otro cron que suba mis cotizaciones
+  /* @Cron('10 3-9 * * 1-5')
+  async subirCotizacionesBISTHora() {
+    
+  } */
 }
