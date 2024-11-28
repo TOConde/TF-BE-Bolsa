@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException, OnModuleInit } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { CotizacionIndice } from "./entities/cotiza-indice.entity";
 import { Repository } from "typeorm";
@@ -30,6 +30,56 @@ export class BolsaService implements OnModuleInit {
 
   async getAllBolsas(): Promise<Bolsa[]> {
     return await this.bolsaRepository.find();
+  }
+
+  async getBolsa(code: string): Promise<Bolsa> {
+    const empresa = this.bolsaRepository.findOne({ where: { code } });
+    if (!empresa) {
+      throw new NotFoundException(`Empresa con código '${code}' no encontrada.`);
+    }
+    return empresa;
+  }
+
+  async getCotizacionesBolsa(code: string, fechaDesde: string, fechaHasta: string, escala: string): Promise<any[]> {
+    const bolsa = await this.bolsaRepository.findOne({ where: { code } });
+    if (!bolsa) {
+      throw new NotFoundException(`Bolsa con código '${code}' no encontrada.`);
+    }
+
+    const fechaInicio = new Date(fechaDesde).toISOString().split('T')[0];
+    const fechaFin = new Date(fechaHasta).toISOString().split('T')[0];
+
+    this.logger.log(`Iniciando getCotizacionesBolsa para ${code}. Fecha desde: ${fechaInicio}, fecha fin: ${fechaFin} escala: ${escala}`);
+
+    if (escala === 'dia') {
+      return this.cotizacionIndiceRepository
+        .createQueryBuilder('cotizacionesindices')
+        .select('DATE_FORMAT(cotizacionesindices.fecha, "%Y-%m-%d")', 'fecha')
+        .addSelect('MIN(cotizacionesindices.valor)', 'minimo')
+        .addSelect('MAX(cotizacionesindices.valor)', 'maximo')
+        .addSelect('SUBSTRING_INDEX(GROUP_CONCAT(cotizacionesindices.valor ORDER BY CONCAT(cotizacionesindices.fecha, " ", cotizacionesindices.hora) ASC), ",", 1)', 'apertura')
+        .addSelect('SUBSTRING_INDEX(GROUP_CONCAT(cotizacionesindices.valor ORDER BY CONCAT(cotizacionesindices.fecha, " ", cotizacionesindices.hora) DESC), ",", 1)', 'cierre')
+        .where('cotizacionesindices.idBolsa = :idBolsa', { idBolsa: bolsa.id })
+        .andWhere('cotizacionesindices.fecha BETWEEN :fechaInicio AND :fechaFin', { fechaInicio, fechaFin })
+        .groupBy('DATE_FORMAT(cotizacionesindices.fecha, "%Y-%m-%d")')
+        .orderBy('DATE_FORMAT(cotizacionesindices.fecha, "%Y-%m-%d")', 'ASC')
+        .getRawMany()
+    } else if (escala === 'mes') {
+      return this.cotizacionIndiceRepository
+        .createQueryBuilder('cotizacionesindices')
+        .select('DATE_FORMAT(cotizacionesindices.fecha, "%Y-%m")', 'fecha')
+        .addSelect('MIN(cotizacionesindices.valor)', 'minimo')
+        .addSelect('MAX(cotizacionesindices.valor)', 'maximo')
+        .addSelect('SUBSTRING_INDEX(GROUP_CONCAT(cotizacionesindices.valor ORDER BY CONCAT(cotizacionesindices.fecha, " ", cotizacionesindices.hora) ASC), ",", 1)', 'apertura')
+        .addSelect('SUBSTRING_INDEX(GROUP_CONCAT(cotizacionesindices.valor ORDER BY CONCAT(cotizacionesindices.fecha, " ", cotizacionesindices.hora) DESC), ",", 1)', 'cierre')
+        .where('cotizacionesindices.idBolsa = :idBolsa', { idBolsa: bolsa.id })
+        .andWhere('cotizacionesindices.fecha BETWEEN :fechaInicio AND :fechaFin', { fechaInicio, fechaFin })
+        .groupBy('DATE_FORMAT(cotizacionesindices.fecha, "%Y-%m")')
+        .orderBy('DATE_FORMAT(cotizacionesindices.fecha, "%Y-%m")', 'ASC')
+        .getRawMany()
+    } else {
+      throw new Error(`Escala '${escala}' no soportada. Use 'dia' o 'mes'.`);
+    }
   }
 
   async obtenerUltimaCotizacionBolsa(code: string): Promise<CotizacionIndice | null> {
@@ -242,7 +292,7 @@ export class BolsaService implements OnModuleInit {
   @Cron('10 * * * *')
   async actualizarBolsasHoraApi() {
     this.logger.log('Ejecutando tarea programada: actualizarCotizacionBolsasApi');
-    //await this.actualizarCotizacionBolsasApi();
+    await this.actualizarCotizacionBolsasApi();
   }
 
   /* @Cron('10 3-9 * * 1-5')
