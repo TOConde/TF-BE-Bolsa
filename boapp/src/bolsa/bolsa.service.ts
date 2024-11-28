@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException, OnModuleInit } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { CotizacionIndice } from "./entities/cotiza-indice.entity";
 import { Repository } from "typeorm";
@@ -30,6 +30,14 @@ export class BolsaService implements OnModuleInit {
 
   async getAllBolsas(): Promise<Bolsa[]> {
     return await this.bolsaRepository.find();
+  }
+
+  async getBolsa(code: string): Promise<Bolsa> {
+    const empresa = this.bolsaRepository.findOne({ where: { code } });
+    if (!empresa) {
+      throw new NotFoundException(`Empresa con código '${code}' no encontrada.`);
+    }
+    return empresa;
   }
 
   async obtenerUltimaCotizacionBolsa(code: string): Promise<CotizacionIndice | null> {

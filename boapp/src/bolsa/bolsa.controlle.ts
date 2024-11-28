@@ -1,4 +1,4 @@
-import { Controller, Get, Post } from "@nestjs/common";
+import { Controller, Get, Param, Post } from "@nestjs/common";
 import { BolsaService } from "./bolsa.service";
 
 
@@ -11,5 +11,8 @@ export class BolsaController {
     return await this.bolsaService.getAllBolsas();
   }
 
-  
+  @Get(':code')
+  async getBolsa(@Param('code') code: string) {
+    return await this.bolsaService.getBolsa(code)
+  }
 }
