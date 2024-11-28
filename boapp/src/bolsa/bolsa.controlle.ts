@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post } from "@nestjs/common";
+import { Controller, Get, Param, Post, Query } from "@nestjs/common";
 import { BolsaService } from "./bolsa.service";
 
 
@@ -9,6 +9,11 @@ export class BolsaController {
   @Get()
   async getAllBolsas() {
     return await this.bolsaService.getAllBolsas();
+  }
+
+  @Get(':code/cotizaciones')
+  async getCotizacionesEmpresa(@Param('code') code: string, @Query('fechaDesde') fechaDesde: string, @Query('fechaHasta') fechaHasta: string, @Query('escala') escala: string) {
+    return await this.bolsaService.getCotizacionesBolsa(code, fechaDesde, fechaHasta, escala);
   }
 
   @Get(':code')
