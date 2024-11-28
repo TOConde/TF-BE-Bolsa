@@ -23,6 +23,7 @@ export class BolsaService implements OnModuleInit {
   async onModuleInit() {
     await this.actualizarBolsas();
     await this.crearCotizacionesBIST();
+    //await this.actualizarCotizacionBolsasApi()
   }
 
   async getAllBolsas(): Promise<Bolsa[]> {
@@ -150,8 +151,21 @@ export class BolsaService implements OnModuleInit {
     }
   }
 
-  async actualizarCotizacionBolsasApi() { // llamar onModuleInit (ver si el orden de ejecucion es el orden de llamado, creo que si)
+  async actualizarCotizacionBolsasApi() {
     // si no hay registro previo traer desde 2024-01-01T00:00 si no traer desde ultima fecha de cotizacion existente (verificar que no se repita el ultimo dato)
+    const bolsas = await this.getAllBolsas();
+
+    if (!bolsas) {
+      this.logger.warn(`No se encontraron bolsas`)
+    }
+
+    for (const bolsa of bolsas) {
+      try {
+
+      } catch (error) {
+        console.error(`Error actualizando datos de la bolsa ${bolsa.code}:`, error);
+      }
+    }
   }
 
   async subirCotizacionesBIST() { // tambien dejarlo en onModuleInit y llamar a schedule
@@ -159,7 +173,7 @@ export class BolsaService implements OnModuleInit {
   }
 
   @Cron('7 3-9 * * 1-5')
-  async a(){
+  async aactualizarBolsasHora() {
     this.logger.log('Ejecutando tarea programada: actualizarBolsas');
     await this.actualizarBolsas();
 
