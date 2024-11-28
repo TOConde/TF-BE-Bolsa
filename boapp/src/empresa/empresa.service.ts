@@ -1,7 +1,7 @@
 import { Injectable, Logger, NotFoundException, OnModuleInit } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Cotizacion } from "./entities/cotizacion.entity";
-import { Repository } from "typeorm";
+import { Not, Repository } from "typeorm";
 import { ApiService } from "src/api/api.service";
 import { Empresa } from "./entities/empresa.entity";
 import { deUTCaUTCMas3, deUTCMas3aUTC } from "src/utils/dateUtils";
@@ -34,6 +34,41 @@ export class EmpresaService implements OnModuleInit {
       throw new NotFoundException(`Empresa con código '${codEmpresa}' no encontrada.`);
     }
     return empresa;
+  }
+
+  async getPrimeraCotizacionEmpresa(): Promise<{ fecha: string; hora: string }> {
+    try {
+      this.logger.log("Intentando obtener la primera cotización...");
+      const cotizacion = await this.cotizacionRepository.findOne({
+        where: { id: Not(null) },
+        order: { fecha: "ASC", hora: "ASC" }
+      })
+
+      this.logger.log("Resultado de findOne:", cotizacion);
+
+      if (cotizacion) {
+        return { fecha: cotizacion.fecha, hora: cotizacion.hora }
+      }
+
+      this.logger.log("No se encontraron cotizaciones. Usando valores predeterminados...");
+      return { fecha: "2024-01-01", hora: "09:00" };
+    } catch (error) {
+      console.error("No hay cotizaciones disponibles", error);
+      throw error;
+    }
+  }
+
+  async getCotizacionPorFechaYHora(codEmpresa: string, fecha: string, hora: string): Promise<Cotizacion | null> {
+    try {
+      const cotizacion = await this.cotizacionRepository.findOne({
+        where: { empresa: { codEmpresa }, fecha: fecha, hora: hora }
+      })
+
+      return cotizacion || null;
+    } catch (error) {
+      this.logger.log(`Error al obtener cotizacion fecha: ${fecha} y hora: ${hora}`, error);
+      return null;
+    }
   }
 
   async obtenerUltimaCotizacion(codEmpresa: string): Promise<Cotizacion | null> {
