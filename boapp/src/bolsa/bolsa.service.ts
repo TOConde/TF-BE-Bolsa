@@ -1,7 +1,7 @@
 import { Injectable, Logger, NotFoundException, OnModuleInit } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { CotizacionIndice } from "./entities/cotiza-indice.entity";
-import { Between, Repository } from "typeorm";
+import { Repository } from "typeorm";
 import { Bolsa } from "./entities/bolsa.entity";
 import { ApiService } from "src/api/api.service";
 import { EmpresaService } from "src/empresa/empresa.service";
@@ -392,14 +392,14 @@ export class BolsaService implements OnModuleInit {
 
     this.logger.log('Ejecutando tarea programada: crearCotizacionesBIST');
     await this.crearCotizacionesBIST();
+
+    this.logger.log('Ejecutando tarea programada: postCotizacionBolsaApi');
+    await this.postCotizacionBolsaApi();
   }
 
   @Cron('10 * * * *')
   async actualizarBolsasHoraApi() {
     this.logger.log('Ejecutando tarea programada: actualizarCotizacionBolsasApi');
-    await this.actualizarCotizacionBolsasApi();
-
-    /* this.logger.log('Ejecutando tarea programada: postCotizacionBolsaApi');
-    await this.postCotizacionBolsaApi(); */
+    await this.actualizarCotizacionBolsasApi();    
   }
 }
