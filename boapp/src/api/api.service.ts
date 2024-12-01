@@ -1,9 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 
 @Injectable()
 export class ApiService {
   private readonly apiUrl = 'http://ec2-54-145-211-254.compute-1.amazonaws.com:3000';
+  private readonly logger = new Logger(ApiService.name)
 
   async getEmpresaDetails(codEmpresa: string): Promise<any> {
     try {
@@ -50,7 +51,13 @@ export class ApiService {
     return response.data;
   }
 
-  async createBolsaCotizacionIndice(codBolsa: string, fechaDesde: string, fechaHasta: string) {
-
+  async postBolsaCotizacionIndice(body: { fecha: string, hora: string, codigoIndice: string, valorIndice: number }) {
+    try {
+      const response = await axios.post(`${this.apiUrl}/indices/cotizaciones`, body);
+      return response.data;
+    } catch (error) {
+      this.logger.error(`Error al enviar cotización: ${error.message}`);
+      throw new Error('No se pudo enviar la cotización a la API');
+    }    
   }
 }
