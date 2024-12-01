@@ -1,7 +1,7 @@
 import { Injectable, Logger, NotFoundException, OnModuleInit } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { CotizacionIndice } from "./entities/cotiza-indice.entity";
-import { Repository } from "typeorm";
+import { Between, Repository } from "typeorm";
 import { Bolsa } from "./entities/bolsa.entity";
 import { ApiService } from "src/api/api.service";
 import { EmpresaService } from "src/empresa/empresa.service";
@@ -22,10 +22,14 @@ export class BolsaService implements OnModuleInit {
   ) { }
 
   async onModuleInit() {
+    this.logger.log('Init: actualizarBolsas');
     await this.actualizarBolsas();
+    this.logger.log('Init: crearCotizacionesBIST');
     await this.crearCotizacionesBIST();
-    await this.actualizarCotizacionBolsasApi()
-    //await this.subirCotizacionesBIST();
+    this.logger.log('Init: actualizarCotizacionBolsasApi');
+    await this.actualizarCotizacionBolsasApi();
+    this.logger.log('Init: postCotizacionBolsaApi');
+    await this.postCotizacionBolsaApi();
   }
 
   async getAllBolsas(): Promise<Bolsa[]> {
@@ -207,6 +211,111 @@ export class BolsaService implements OnModuleInit {
     }
   }
 
+  async postCotizacionBolsaApi() {
+    try {
+      const bolsasApi = await this.apiservice.getBolsaDetails();
+      const bolsaBIST = bolsasApi.find((bolsa: any) => bolsa.code === "BIST");
+
+      if (!bolsaBIST) {
+        this.logger.warn(`No se encontró la bolsa con código "BIST"`);
+        return;
+      }
+
+      const fechaActual = momentTZ.tz("Europe/Istanbul").format("YYYY-MM-DDTHH:mm");
+      const fechaInicioBusqueda = momentTZ.tz("Europe/Istanbul").subtract(1, "month").format("YYYY-MM-DDTHH:mm");
+
+      const cotizacionesApi = await this.apiservice.getBolsaCotizacionIndice("BIST", fechaInicioBusqueda, fechaActual);
+
+      let fechaInicio: string;
+      let horaInicio: string;
+
+      const fechaHoraActual = momentTZ.tz(fechaActual, "YYYY-MM-DDTHH:mm", "Europe/Istanbul");
+      const fechaHoraInicio = momentTZ.tz(fechaInicioBusqueda, "Europe/Istanbul").format("YYYY-MM-DDTHH:mm");
+      const fechaHoraFin = fechaHoraActual.format("YYYY-MM-DDTHH:mm");
+
+      let cotizacionesLocales = await this.cotizacionIndiceRepository.createQueryBuilder("cotizacion")
+        .where("cotizacion.idBolsa = :idBolsa", { idBolsa: 9 }) //obtener bien!
+        .andWhere(
+          "CONCAT(cotizacion.fecha, 'T', cotizacion.hora) BETWEEN :inicio AND :fin",
+          { inicio: fechaHoraInicio, fin: fechaHoraFin }
+        )
+        .getMany();
+
+      this.logger.log(`Cantidad cotizaciones locales encontradas: ${cotizacionesLocales.length}`);
+
+      let cotizacionesFaltantes: any[] = [];
+      if (cotizacionesApi && cotizacionesApi.length > 0) {
+        const fechasApi = new Set(
+          cotizacionesApi.map(cotizacion =>
+            momentTZ.tz(`${cotizacion.fecha}T${cotizacion.hora}`, "UTC").format("YYYY-MM-DDTHH:mm")
+          )
+        );
+
+        cotizacionesFaltantes = cotizacionesLocales.filter(local => {
+          const fechaHoraLocal = momentTZ.tz(`${local.fecha}T${local.hora}`, "Europe/Istanbul").utc().format("YYYY-MM-DDTHH:mm");
+          return !fechasApi.has(fechaHoraLocal) ? local : null;
+        }).filter(Boolean);
+
+        this.logger.log(`cotizacionesFaltantes: ${cotizacionesFaltantes.length}`)
+
+        if (cotizacionesFaltantes.length > 0) {
+          const primeraCotizacionFaltante = cotizacionesFaltantes.sort((a, b) => {
+            const fechaHoraA = momentTZ.tz(`${a.fecha}T${a.hora}`, "Europe/Istanbul");
+            const fechaHoraB = momentTZ.tz(`${b.fecha}T${b.hora}`, "Europe/Istanbul");
+            return fechaHoraA.diff(fechaHoraB);
+          })[0];
+
+          fechaInicio = momentTZ.tz(`${primeraCotizacionFaltante.fecha}T${primeraCotizacionFaltante.hora}`, "Europe/Istanbul").format("YYYY-MM-DD");
+          horaInicio = momentTZ.tz(`${primeraCotizacionFaltante.fecha}T${primeraCotizacionFaltante.hora}`, "Europe/Istanbul").format("HH:mm");
+
+          this.logger.log(`Primera cotización faltante a subir: ${fechaInicio} ${horaInicio}`);
+        } else {
+          this.logger.log(`No hay cotizaciones locales que falten subir en el rango de la API.`);
+          return;
+        }
+      } else {
+        fechaInicio = "2024-01-01";
+        horaInicio = "00:00";
+
+        cotizacionesLocales = await this.cotizacionIndiceRepository.createQueryBuilder("cotizacion")
+        .where("cotizacion.idBolsa = :idBolsa", { idBolsa: 9 }) //obtener bien!
+        .andWhere(
+          "CONCAT(cotizacion.fecha, 'T', cotizacion.hora) BETWEEN :inicio AND :fin",
+          { inicio: "2024-01-01T00:00", fin: fechaHoraFin }
+        )
+        .getMany();
+        cotizacionesFaltantes = cotizacionesLocales;
+        
+        this.logger.log(`No hay cotizaciones en la API, comenzando desde la primera cotización local: ${fechaInicio} ${horaInicio}`);
+      }
+
+      const cotizacionesToPost = cotizacionesFaltantes.map(async (cotizacionLocal) => {
+        if (cotizacionLocal) {
+          try {
+            const fechaUTC = momentTZ.tz(`${cotizacionLocal.fecha}T${cotizacionLocal.hora}`, "Europe/Istanbul").utc().format("YYYY-MM-DD");
+            const horaUTC = momentTZ.tz(`${cotizacionLocal.fecha}T${cotizacionLocal.hora}`, "Europe/Istanbul").utc().format("HH:mm");
+
+            await this.apiservice.postBolsaCotizacionIndice({
+              fecha: fechaUTC,
+              hora: horaUTC,
+              codigoIndice: "BIST",
+              valorIndice: cotizacionLocal.valor,
+            });
+
+            this.logger.log(`Cotización publicada: Fecha ${cotizacionLocal.fecha}, Hora ${cotizacionLocal.hora}`);
+          } catch (error) {
+            this.logger.error(`Error al publicar cotización: Fecha ${cotizacionLocal.fecha}, Hora ${cotizacionLocal.hora}, Error: ${error.message}`);
+          }
+        }
+      });
+
+      await Promise.all(cotizacionesToPost);
+      this.logger.log("Sincronización de cotizaciones de BIST completada.");
+    } catch (error) {
+      this.logger.error('Ocurrió un error en la sincronización de cotizaciones', error);
+    }
+  }
+
   async actualizarCotizacionBolsasApi() {
     const bolsas = await this.getAllBolsas();
 
@@ -276,10 +385,6 @@ export class BolsaService implements OnModuleInit {
     }
   }
 
-  async subirCotizacionesBIST() {// en mi DB esta en UTC+3 -> UTC
-    // subir las cotizaciones de mi bolsa a la api (tener en cuenta el cambio horario)
-  }
-
   @Cron('7 3-9 * * 1-5')
   async actualizarBolsasHora() {
     this.logger.log('Ejecutando tarea programada: actualizarBolsas');
@@ -293,10 +398,8 @@ export class BolsaService implements OnModuleInit {
   async actualizarBolsasHoraApi() {
     this.logger.log('Ejecutando tarea programada: actualizarCotizacionBolsasApi');
     await this.actualizarCotizacionBolsasApi();
-  }
 
-  /* @Cron('10 3-9 * * 1-5')
-  async subirCotizacionesBISTHora() {
-    
-  } */
+    /* this.logger.log('Ejecutando tarea programada: postCotizacionBolsaApi');
+    await this.postCotizacionBolsaApi(); */
+  }
 }

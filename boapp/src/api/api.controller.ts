@@ -31,8 +31,8 @@ export class ApiController {
     return this.apiService.createBolsa(body);
   }
 
-  @Post('bolsa/:codBolsa/cotizacion')
-  async createBolsaCotizacionIndice(@Param('codBolsa') codBolsa: string, @Query('fechaDesde') fechaDesde: string, @Query('fechaHasta') fechaHasta: string) {
-    return this.apiService.createBolsaCotizacionIndice(codBolsa, fechaDesde, fechaHasta);
+  @Post('bolsa/cotizacion')
+  async postBolsaCotizacionIndice(@Body() body: { fecha: string; hora: string, codigoIndice: string, valorIndice: number }) {
+    return this.apiService.postBolsaCotizacionIndice(body);
   }
 }
