@@ -215,9 +215,15 @@ export class BolsaService implements OnModuleInit {
     try {
       const bolsasApi = await this.apiservice.getBolsaDetails();
       const bolsaBIST = bolsasApi.find((bolsa: any) => bolsa.code === "BIST");
+      const bolsaBISTLocal = await this.getBolsa("BIST"); //para el id
 
       if (!bolsaBIST) {
         this.logger.warn(`No se encontró la bolsa con código "BIST"`);
+        return;
+      }
+
+      if (!bolsaBISTLocal) {
+        this.logger.warn(`No se encontró la bolsa localmente con código "BIST"`);
         return;
       }
 
@@ -234,7 +240,7 @@ export class BolsaService implements OnModuleInit {
       const fechaHoraFin = fechaHoraActual.format("YYYY-MM-DDTHH:mm");
 
       let cotizacionesLocales = await this.cotizacionIndiceRepository.createQueryBuilder("cotizacion")
-        .where("cotizacion.idBolsa = :idBolsa", { idBolsa: 9 }) //obtener bien!
+        .where("cotizacion.idBolsa = :idBolsa", { idBolsa: bolsaBISTLocal.id })
         .andWhere(
           "CONCAT(cotizacion.fecha, 'T', cotizacion.hora) BETWEEN :inicio AND :fin",
           { inicio: fechaHoraInicio, fin: fechaHoraFin }
@@ -278,7 +284,7 @@ export class BolsaService implements OnModuleInit {
         horaInicio = "00:00";
 
         cotizacionesLocales = await this.cotizacionIndiceRepository.createQueryBuilder("cotizacion")
-        .where("cotizacion.idBolsa = :idBolsa", { idBolsa: 9 }) //obtener bien!
+        .where("cotizacion.idBolsa = :idBolsa", { idBolsa: bolsaBISTLocal.id })
         .andWhere(
           "CONCAT(cotizacion.fecha, 'T', cotizacion.hora) BETWEEN :inicio AND :fin",
           { inicio: "2024-01-01T00:00", fin: fechaHoraFin }
