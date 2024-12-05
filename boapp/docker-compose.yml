@@ -1,0 +1,39 @@
+services:
+  # Servicio para tu aplicación Node.js
+  app:
+    build:
+      context: . # El contexto es el directorio actual, asumiendo que el Dockerfile está en el mismo lugar
+      dockerfile: Dockerfile # Aquí se construye la imagen desde tu Dockerfile
+    ports:
+      - "8000:3000" # Exponer el puerto de tu aplicación, puedes cambiarlo si es necesario
+    environment:
+      - NODE_ENV=development # O production, depende de tu configuración
+      - MYSQL_HOST=mysql
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=root
+      - MYSQL_DB=cotizaciones
+    depends_on:
+      - mysql # Para asegurarse de que las bases de datos se inicien antes que la app
+    networks:
+    - boappnetwork 
+
+  # Servicio para MySQL
+  mysql:
+    image: mysql:latest
+    container_name: mysql
+    ports:
+      - "3316:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root # Contraseña del usuario root
+      MYSQL_DATABASE: cotizaciones # Nombre de la base de datos inicial
+    volumes:
+      - mysql-data:/var/lib/mysql # Persistencia de datos en un volumen
+    networks:
+      - boappnetwork
+
+volumes:
+  mysql-data:
+
+networks:
+  boappnetwork:
+    driver: bridge
